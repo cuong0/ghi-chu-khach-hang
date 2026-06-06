@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -41,6 +42,21 @@ fun SettingsTab(
 
     var showAboutDialog by remember { mutableStateOf(false) }
     var showClearConfirmationDialog by remember { mutableStateOf(false) }
+
+    // Launcher for multiple permissions request
+    val permissionsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissionsMap ->
+        val grantedCount = permissionsMap.values.count { it }
+        val totalCount = permissionsMap.size
+        if (grantedCount == totalCount) {
+            Toast.makeText(context, "Đã cấp tất cả các quyền thành công!", Toast.LENGTH_SHORT).show()
+        } else if (grantedCount > 0) {
+            Toast.makeText(context, "Đã cấp thêm $grantedCount/$totalCount quyền.", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "Yêu cầu cấp quyền bị từ chối.", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // Launcher for exporting CSV (Excel file)
     val exportLauncher = rememberLauncherForActivityResult(
@@ -228,6 +244,69 @@ fun SettingsTab(
                                 )
                                 Text(
                                     "Phiên bản, tác giả và chính sách",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                    // Option 4: Enable all app permissions
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                val neededPerms = mutableListOf(
+                                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                                    android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                                    android.Manifest.permission.READ_CALENDAR,
+                                    android.Manifest.permission.WRITE_CALENDAR,
+                                    android.Manifest.permission.CAMERA
+                                )
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                    neededPerms.add(android.Manifest.permission.READ_MEDIA_IMAGES)
+                                    neededPerms.add(android.Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    neededPerms.add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+                                }
+
+                                val notGranted = neededPerms.filter { permission ->
+                                    androidx.core.content.ContextCompat.checkSelfPermission(context, permission) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                                }
+
+                                if (notGranted.isEmpty()) {
+                                    Toast.makeText(context, "Tất cả quyền của ứng dụng đã được bật từ trước!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    permissionsLauncher.launch(notGranted.toTypedArray())
+                                }
+                            }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    "Bật tất cả các quyền của ứng dụng",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    "Yêu cầu cấp tất cả các quyền của hệ thống chưa cho phép",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
