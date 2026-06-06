@@ -1,0 +1,36 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Background shade beneath the centered white canvas icon -->
+    <path
+        android:fillColor="#15000000"
+        android:pathData="M30,30 h48 v52 h-48 z" />
+
+    <!-- Document Page sheet -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,26 h52 v56 h-52 z" />
+
+    <!-- Top header band (Green accent of page) -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M28,26 h52 v14 h-52 z" />
+
+    <!-- Document pen binding lines detail -->
+    <path
+        android:fillColor="#E0E0E0"
+        android:pathData="M34,48 h40 v4 h-40 z M34,58 h40 v4 h-40 z M34,68 h26 v4 h-26 z" />
+
+    <!-- Cute Customer User check badge overlap -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M64,62 A 12 12 0 1 1 64 86 A 12 12 0 1 1 64 62 Z" />
+
+    <!-- Checkmark inside the green user badge -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M63,77 l-4,-4 l2,-2 l2,2 l5,-5 l1,2 z" />
+</vector>

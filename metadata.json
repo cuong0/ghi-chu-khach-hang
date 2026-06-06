@@ -1,0 +1,6 @@
+{
+  "name": "Ghi chú khách hàng",
+  "description": "Quản lý khách hàng tiềm năng, theo dõi phản hồi và đồng bộ lịch hẹn gặp mặt.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
