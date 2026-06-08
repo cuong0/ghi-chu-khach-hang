@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Schedule
@@ -93,7 +94,10 @@ fun NotesTab(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onNavigateToAddCustomer,
+                onClick = {
+                    viewModel.startAddLead()
+                    onNavigateToAddCustomer()
+                },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.primary,
                 shape = RoundedCornerShape(20.dp),
@@ -177,6 +181,10 @@ fun NotesTab(
                                 } catch (e: Exception) {
                                     // Handle device calls elegantly in case of emulator constraints
                                 }
+                            },
+                            onEdit = {
+                                viewModel.startEditLead(lead)
+                                onNavigateToAddCustomer()
                             }
                         )
                     }
@@ -190,7 +198,8 @@ fun NotesTab(
 fun LeadCardItem(
     lead: Lead,
     onDelete: () -> Unit,
-    onCall: () -> Unit
+    onCall: () -> Unit,
+    onEdit: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     Card(
@@ -235,6 +244,19 @@ fun LeadCardItem(
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
+                    }
+                    if (onEdit != null) {
+                        IconButton(
+                            onClick = onEdit,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Chỉnh sửa",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                     IconButton(
                         onClick = onDelete,

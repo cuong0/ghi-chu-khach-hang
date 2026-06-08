@@ -69,6 +69,8 @@ fun AddLeadScreen(
     val area by viewModel.areaInput.collectAsState()
     val notes by viewModel.notesInput.collectAsState()
     val recontactDate by viewModel.recontactDateInput.collectAsState()
+    val editingLeadId by viewModel.editingLeadId.collectAsState()
+    val isEditMode = editingLeadId != null
 
     // Keep local states for instant, synchronous IME feedback in Vietnamese without breaking composition
     var nameLocal by remember { mutableStateOf(viewModel.nameInput.value) }
@@ -87,13 +89,12 @@ fun AddLeadScreen(
     // Existing areas list to populate searchable dropdown suggestions
     val existingAreas by viewModel.distinctAreas.collectAsState()
 
-    var showMapPicker by remember { mutableStateOf(false) }
     var areaDropdownExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Thêm khách hàng mới", fontWeight = FontWeight.Bold, fontSize = 21.sp) },
+                title = { Text(if (isEditMode) "Chỉnh sửa khách hàng" else "Thêm khách hàng mới", fontWeight = FontWeight.Bold, fontSize = 21.sp) },
                 navigationIcon = {
                     IconButton(onClick = {
                         focusManager.clearFocus()
@@ -213,15 +214,7 @@ fun AddLeadScreen(
                         }
                     }
 
-                    // Simulated Map Pin Helper Trigger
-                    TextButton(
-                        onClick = { showMapPicker = true },
-                        modifier = Modifier.align(Alignment.End)
-                    ) {
-                        Icon(imageVector = Icons.Default.EditLocation, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Ghim tọa độ giả lập in-app", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
+
 
                     // Selected Coordinates Indicator
                     if (lat != null && lng != null) {
@@ -306,7 +299,7 @@ fun AddLeadScreen(
 
             // Contact Alarm Date picker trigger
             Text(
-                "Lên lịch hẹn tái tiếp xúc (Native Sync)",
+                "Tạo lịch hẹn",
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.primary
@@ -418,158 +411,14 @@ fun AddLeadScreen(
             ) {
                 Icon(imageVector = Icons.Default.Save, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Lưu khách hàng & Tạo cuộc hẹn", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (isEditMode) "Lưu & Cập nhật khách hàng" else "Lưu khách hàng & Tạo cuộc hẹn",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
 
-    // High fidelity simulated Google Maps Picker Dialog
-    if (showMapPicker) {
-        var markerOffset by remember { mutableStateOf<Offset?>(null) }
-        var selectedCityName by remember { mutableStateOf("") }
-        var selectedCityAddress by remember { mutableStateOf("") }
-        var localLat by remember { mutableStateOf(10.7769) }
-        var localLng by remember { mutableStateOf(106.695) }
 
-        AlertDialog(
-            onDismissRequest = { showMapPicker = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Map, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Đánh dấu trên bản đồ", fontWeight = FontWeight.Bold)
-                }
-            },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Chọn nhanh tỉnh thành hoặc nhấp trực tiếp vào bản đồ để ghim định vị.", fontSize = 13.sp)
-
-                    // Quick Province buttons
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Utility.SIMULATED_VIETNAM_LOCATIONS.forEach { loc ->
-                            FilterChip(
-                                selected = selectedCityName == loc.name,
-                                onClick = {
-                                    selectedCityName = loc.name
-                                    selectedCityAddress = loc.address
-                                    localLat = loc.latitude
-                                    localLng = loc.longitude
-                                    markerOffset = Offset(90f + (loc.longitude.toFloat() - 105f) * 10f, 90f - (loc.latitude.toFloat() - 15f) * 10f) // Simulated projection
-                                },
-                                label = { Text(loc.name) }
-                            )
-                        }
-                    }
-
-                    // Map Simulator Vector Canvas Drawing
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFE3F2FD)) // Light blue water
-                            .pointerInput(Unit) {
-                                detectTapGestures { offset ->
-                                    markerOffset = offset
-                                    // Generate coordinates randomized depending on touch offsets for extreme fidelity
-                                    localLat = 10.0 + (200f - offset.y) / 20.0
-                                    localLng = 105.0 + offset.x / 40.0
-
-                                    // Auto-match nearest address
-                                    val nearest = Utility.SIMULATED_VIETNAM_LOCATIONS.minByOrNull {
-                                        Math.pow(it.latitude - localLat, 2.0) + Math.pow(it.longitude - localLng, 2.0)
-                                    }
-                                    if (nearest != null) {
-                                        selectedCityName = nearest.name
-                                        selectedCityAddress = "${(1..150).random()} đường Lê Lai, ${nearest.name}"
-                                    }
-                                }
-                            }
-                    ) {
-                        val strokeColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                        val islandColor = Color(0xFFC8E6C9)
-
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            // Draw simulated Vietnamese borders or coastlines
-                            drawCircle(color = islandColor, radius = 70f, center = Offset(200f, 100f))
-                            drawCircle(color = islandColor, radius = 50f, center = Offset(100f, 160f))
-                            drawCircle(color = islandColor, radius = 40f, center = Offset(300f, 50f))
-
-                            // Draw simulated grid highways
-                            drawLine(color = Color.White, start = Offset(0f, 40f), end = Offset(size.width, 180f), strokeWidth = 6f)
-                            drawLine(color = Color.White, start = Offset(80f, 0f), end = Offset(240f, size.height), strokeWidth = 4f)
-                        }
-
-                        // Drawing our active custom Pin Marker on Canvas
-                        markerOffset?.let { offset ->
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = null,
-                                tint = Color.Red,
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .offset(
-                                        x = (offset.x / LocalContext.current.resources.displayMetrics.scaledDensity).dp - 16.dp,
-                                        y = (offset.y / LocalContext.current.resources.displayMetrics.scaledDensity).dp - 32.dp
-                                    )
-                            )
-                        }
-
-                        // Coordinates indicator
-                        Surface(
-                            color = Color.Black.copy(alpha = 0.7f),
-                            shape = RoundedCornerShape(6.dp),
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(8.dp)
-                        ) {
-                            Text(
-                                text = "Lat: ${String.format("%.4f", localLat)} | Lng: ${String.format("%.4f", localLng)}",
-                                color = Color.White,
-                                fontSize = 10.sp,
-                                modifier = Modifier.padding(6.dp, 4.dp)
-                            )
-                        }
-                    }
-
-                    // Display Matched address
-                    if (selectedCityAddress.isNotEmpty()) {
-                        Text(
-                            text = "Địa chỉ khớp: $selectedCityAddress",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.pickedLatitude.value = localLat
-                        viewModel.pickedLongitude.value = localLng
-                        if (selectedCityAddress.isNotEmpty()) {
-                            viewModel.addressInput.value = selectedCityAddress
-                        }
-                        showMapPicker = false
-                    }
-                ) {
-                    Text("Đồng ý", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showMapPicker = false }) {
-                    Text("Hủy")
-                }
-            }
-        )
-    }
 }

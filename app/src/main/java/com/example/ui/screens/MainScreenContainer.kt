@@ -19,6 +19,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import com.example.ui.viewmodel.LeadViewModel
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
 
 enum class NavigationTab(
     val route: String,
@@ -43,6 +56,123 @@ fun MainScreenContainer(
 ) {
     var currentScreen by remember { mutableStateOf(ScreenRoute.MAIN_TABS) }
     var activeTab by remember { mutableStateOf(NavigationTab.NOTES) }
+
+    // Live list of all leads
+    val allLeads by viewModel.allLeads.collectAsState()
+    
+    // Tracks already notified leads in the current app session to avoid spamming
+    var notifiedLeadsMap by remember { mutableStateOf(setOf<Int>()) }
+    var currentAlertLead by remember { mutableStateOf<com.example.data.model.Lead?>(null) }
+
+    // On-screen notification time checker (runs periodically every 4 seconds)
+    LaunchedEffect(allLeads) {
+        while (true) {
+            val now = System.currentTimeMillis()
+            // Find any lead whose re-contact date has reached or passed (within a reasonable 48 hour past window)
+            val dueLead = allLeads.firstOrNull { lead ->
+                lead.recontactDate <= now &&
+                lead.recontactDate > (now - 48 * 60 * 60 * 1000) &&
+                lead.id !in notifiedLeadsMap
+            }
+            if (dueLead != null) {
+                currentAlertLead = dueLead
+            }
+            kotlinx.coroutines.delay(4000)
+        }
+    }
+
+    // Gorgeous custom alert dialog for in-app popups
+    if (currentAlertLead != null) {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val lead = currentAlertLead!!
+        AlertDialog(
+            onDismissRequest = {
+                notifiedLeadsMap = notifiedLeadsMap + lead.id
+                currentAlertLead = null
+            },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Lịch hẹn tiếp xúc lại!",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Đến giờ hẹn liên hệ với khách hàng:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = lead.name,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (lead.phone.isNotEmpty()) {
+                        Text(
+                            text = "SĐT: ${lead.phone}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    if (lead.notes.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Nội dung: ${lead.notes}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 3,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        notifiedLeadsMap = notifiedLeadsMap + lead.id
+                        currentAlertLead = null
+                        try {
+                            val intent = Intent(Intent.ACTION_DIAL).apply {
+                                data = Uri.parse("tel:${lead.phone}")
+                            }
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            // Fallback in case of device limitations
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Gọi điện", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        notifiedLeadsMap = notifiedLeadsMap + lead.id
+                        currentAlertLead = null
+                    }
+                ) {
+                    Text("Đóng", fontWeight = FontWeight.Medium)
+                }
+            }
+        )
+    }
 
     AnimatedContent(
         targetState = currentScreen,

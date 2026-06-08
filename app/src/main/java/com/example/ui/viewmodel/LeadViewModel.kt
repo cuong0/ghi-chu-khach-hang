@@ -69,6 +69,9 @@ class LeadViewModel(
     val userPhone: StateFlow<String> = settingsRepository.userPhone
     val userEmail: StateFlow<String> = settingsRepository.userEmail
     val userAvatarUri: StateFlow<String> = settingsRepository.userAvatarUri
+    val userAvatarScale: StateFlow<Float> = settingsRepository.userAvatarScale
+    val userAvatarOffsetX: StateFlow<Float> = settingsRepository.userAvatarOffsetX
+    val userAvatarOffsetY: StateFlow<Float> = settingsRepository.userAvatarOffsetY
 
     // Temporary values for "Add Customer" Screen form states
     val nameInput = MutableStateFlow("")
@@ -79,6 +82,35 @@ class LeadViewModel(
     val areaInput = MutableStateFlow("")
     val notesInput = MutableStateFlow("")
     val recontactDateInput = MutableStateFlow(System.currentTimeMillis() + 24 * 60 * 60 * 1000) // Tomorrow default
+
+    val editingLeadId = MutableStateFlow<Int?>(null)
+    val editingCreatedAt = MutableStateFlow<Long?>(null)
+
+    fun startAddLead() {
+        editingLeadId.value = null
+        editingCreatedAt.value = null
+        nameInput.value = ""
+        phoneInput.value = ""
+        addressInput.value = ""
+        pickedLatitude.value = null
+        pickedLongitude.value = null
+        areaInput.value = ""
+        notesInput.value = ""
+        recontactDateInput.value = System.currentTimeMillis() + 24 * 60 * 60 * 1000
+    }
+
+    fun startEditLead(lead: Lead) {
+        editingLeadId.value = lead.id
+        editingCreatedAt.value = lead.createdAt
+        nameInput.value = lead.name
+        phoneInput.value = lead.phone
+        addressInput.value = lead.address
+        pickedLatitude.value = lead.latitude
+        pickedLongitude.value = lead.longitude
+        areaInput.value = lead.area
+        notesInput.value = lead.notes
+        recontactDateInput.value = lead.recontactDate
+    }
 
     // Temporary values for "Auth/Signup" manual manual forms
     val authNameInput = MutableStateFlow("")
@@ -122,8 +154,8 @@ class LeadViewModel(
         Toast.makeText(context, "Đã đăng xuất tài khoản", Toast.LENGTH_SHORT).show()
     }
 
-    fun updateAvatar(uri: String) {
-        settingsRepository.updateAvatar(uri)
+    fun updateAvatar(uri: String, scale: Float = 1.0f, offsetX: Float = 0.0f, offsetY: Float = 0.0f) {
+        settingsRepository.updateAvatar(uri, scale, offsetX, offsetY)
     }
 
     fun setManualSignUpInputs(name: String, phone: String, email: String) {
@@ -200,7 +232,9 @@ class LeadViewModel(
         // Auto-register newly entered custom area to persistent list
         addCustomArea(area)
 
+        val isEditMode = editingLeadId.value != null
         val lead = Lead(
+            id = editingLeadId.value ?: 0,
             name = name,
             phone = phone,
             address = address,
@@ -208,25 +242,27 @@ class LeadViewModel(
             longitude = pickedLongitude.value,
             area = area,
             notes = notes,
-            recontactDate = recontactDate
+            recontactDate = recontactDate,
+            createdAt = editingCreatedAt.value ?: System.currentTimeMillis()
         )
 
         viewModelScope.launch {
-            leadRepository.insert(lead)
+            // Cancel existing notification/alarm before updating
+            editingLeadId.value?.let { existingId ->
+                com.example.receiver.ReminderReceiver.cancelNotification(context, existingId)
+            }
+
+            val insertedId = leadRepository.insert(lead)
+            val savedLead = lead.copy(id = if (lead.id == 0) insertedId.toInt() else lead.id)
+            com.example.receiver.ReminderReceiver.scheduleNotification(context, savedLead)
             // Perform Android native Calendar Event insertion safely
             addCalendarEvent(context, name, recontactDate)
             
             // Clean up states
-            nameInput.value = ""
-            phoneInput.value = ""
-            addressInput.value = ""
-            pickedLatitude.value = null
-            pickedLongitude.value = null
-            areaInput.value = ""
-            notesInput.value = ""
-            recontactDateInput.value = System.currentTimeMillis() + 24 * 60 * 60 * 1000
+            startAddLead()
 
-            Toast.makeText(context, "Đã lưu khách hàng và tạo lịch hẹn hẹn gặp!", Toast.LENGTH_SHORT).show()
+            val msg = if (isEditMode) "Đã cập nhật thông tin khách hàng và lịch hẹn!" else "Đã lưu khách hàng và tạo lịch hẹn hẹn gặp!"
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
             onSuccess()
         }
     }
@@ -234,6 +270,7 @@ class LeadViewModel(
     fun deleteLead(lead: Lead) {
         viewModelScope.launch {
             leadRepository.delete(lead)
+            com.example.receiver.ReminderReceiver.cancelNotification(context, lead.id)
             Toast.makeText(context, "Đã xóa khách hàng ${lead.name}", Toast.LENGTH_SHORT).show()
         }
     }

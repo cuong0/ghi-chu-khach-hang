@@ -42,6 +42,15 @@ class SettingsRepository(context: Context) {
     private val _userAvatarUri = MutableStateFlow(prefs.getString("key_user_avatar", "") ?: "")
     val userAvatarUri: StateFlow<String> = _userAvatarUri.asStateFlow()
 
+    private val _userAvatarScale = MutableStateFlow(prefs.getFloat("key_user_avatar_scale", 1.0f))
+    val userAvatarScale: StateFlow<Float> = _userAvatarScale.asStateFlow()
+
+    private val _userAvatarOffsetX = MutableStateFlow(prefs.getFloat("key_user_avatar_offset_x", 0.0f))
+    val userAvatarOffsetX: StateFlow<Float> = _userAvatarOffsetX.asStateFlow()
+
+    private val _userAvatarOffsetY = MutableStateFlow(prefs.getFloat("key_user_avatar_offset_y", 0.0f))
+    val userAvatarOffsetY: StateFlow<Float> = _userAvatarOffsetY.asStateFlow()
+
     fun login(name: String, phone: String, email: String) {
         prefs.edit()
             .putBoolean("key_logged_in", true)
@@ -64,9 +73,17 @@ class SettingsRepository(context: Context) {
         _isSyncEnabled.value = false
     }
 
-    fun updateAvatar(uri: String) {
-        prefs.edit().putString("key_user_avatar", uri).apply()
+    fun updateAvatar(uri: String, scale: Float = 1.0f, offsetX: Float = 0.0f, offsetY: Float = 0.0f) {
+        prefs.edit()
+            .putString("key_user_avatar", uri)
+            .putFloat("key_user_avatar_scale", scale)
+            .putFloat("key_user_avatar_offset_x", offsetX)
+            .putFloat("key_user_avatar_offset_y", offsetY)
+            .apply()
         _userAvatarUri.value = uri
+        _userAvatarScale.value = scale
+        _userAvatarOffsetX.value = offsetX
+        _userAvatarOffsetY.value = offsetY
     }
 
     // Custom Areas flow stored persistently in SharedPreferences

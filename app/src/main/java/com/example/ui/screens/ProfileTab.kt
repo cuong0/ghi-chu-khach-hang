@@ -26,6 +26,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import com.example.ui.viewmodel.LeadViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,6 +89,9 @@ fun LoggedInView(viewModel: LeadViewModel) {
     val phone by viewModel.userPhone.collectAsState()
     val email by viewModel.userEmail.collectAsState()
     val avatarUri by viewModel.userAvatarUri.collectAsState()
+    val avatarScale by viewModel.userAvatarScale.collectAsState()
+    val avatarOffsetX by viewModel.userAvatarOffsetX.collectAsState()
+    val avatarOffsetY by viewModel.userAvatarOffsetY.collectAsState()
 
     var showCropDialog by remember { mutableStateOf(false) }
     var selectedRawUri by remember { mutableStateOf<Uri?>(null) }
@@ -126,12 +134,25 @@ fun LoggedInView(viewModel: LeadViewModel) {
                 border = BorderStroke(3.dp, MaterialTheme.colorScheme.primary)
             ) {
                 if (avatarUri.isNotEmpty()) {
-                    AsyncImage(
-                        model = avatarUri,
-                        contentDescription = "Avatar",
-                        modifier = Modifier.fillMaxSize().clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                    ) {
+                        AsyncImage(
+                            model = avatarUri,
+                            contentDescription = "Avatar",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer(
+                                    scaleX = avatarScale,
+                                    scaleY = avatarScale,
+                                    translationX = avatarOffsetX,
+                                    translationY = avatarOffsetY
+                                ),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 } else {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -239,23 +260,31 @@ fun LoggedInView(viewModel: LeadViewModel) {
 
     // Interactive circular photo cropper simulation dialog (1:1 Aspect Ratio)
     if (showCropDialog && selectedRawUri != null) {
-        var dummyZoom by remember { mutableStateOf(1f) }
+        var zoomScale by remember { mutableStateOf(1f) }
+        var panOffset by remember { mutableStateOf(Offset.Zero) }
         AlertDialog(
             onDismissRequest = { showCropDialog = false },
-            title = { Text("Cắt chỉnh ảnh đại diện (1:1)", fontWeight = FontWeight.Bold) },
+            title = { Text("Căn chỉnh hình ảnh", fontWeight = FontWeight.Bold) },
             text = {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Kéo hoặc thu phóng để điều chỉnh khuôn mặt vào đúng khung hình tròn.", fontSize = 13.sp)
+                    Text("Dùng hai ngón tay để phóng to/thu nhỏ hoặc kéo để căn chỉnh hình ảnh vào đúng khung.", fontSize = 13.sp)
 
-                    // Image Canvas Container simulating crop
+                    // Image Canvas Container with clipping, pinch gesture & rule of thirds grid overlay
                     Box(
                         modifier = Modifier
                             .size(180.dp)
-                            .background(Color.DarkGray, CircleShape),
+                            .clip(CircleShape)
+                            .background(Color.DarkGray)
+                            .pointerInput(Unit) {
+                                detectTransformGestures { _, pan, zoom, _ ->
+                                    zoomScale = (zoomScale * zoom).coerceIn(0.5f, 3.0f)
+                                    panOffset = panOffset + pan
+                                }
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         AsyncImage(
@@ -263,22 +292,60 @@ fun LoggedInView(viewModel: LeadViewModel) {
                             contentDescription = "Selected Raw Image",
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(dummyZoom.let { (30 - 30 * it).coerceAtLeast(0f).dp }) // zoom preview adjustment simulation
-                                .clip(CircleShape),
+                                .graphicsLayer(
+                                    scaleX = zoomScale,
+                                    scaleY = zoomScale,
+                                    translationX = panOffset.x,
+                                    translationY = panOffset.y
+                                ),
                             contentScale = ContentScale.Crop
                         )
+
+                        // 3x3 Grid Overlay for alignment
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val strokeWidth = 1.dp.toPx()
+                            val lineColor = Color.White.copy(alpha = 0.4f)
+
+                            // Horizontal Grid Lines
+                            drawLine(
+                                color = lineColor,
+                                start = Offset(0f, size.height / 3f),
+                                end = Offset(size.width, size.height / 3f),
+                                strokeWidth = strokeWidth
+                            )
+                            drawLine(
+                                color = lineColor,
+                                start = Offset(0f, 2f * size.height / 3f),
+                                end = Offset(size.width, 2f * size.height / 3f),
+                                strokeWidth = strokeWidth
+                            )
+
+                            // Vertical Grid Lines
+                            drawLine(
+                                color = lineColor,
+                                start = Offset(size.width / 3f, 0f),
+                                end = Offset(size.width / 3f, size.height),
+                                strokeWidth = strokeWidth
+                            )
+                            drawLine(
+                                color = lineColor,
+                                start = Offset(2f * size.width / 3f, 0f),
+                                end = Offset(2f * size.width / 3f, size.height),
+                                strokeWidth = strokeWidth
+                            )
+                        }
                     }
 
-                    // Dummy zoom Slider
+                    // zoom Slider synced with Gestures
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Thu phóng", fontSize = 12.sp, modifier = Modifier.width(60.dp))
                         Slider(
-                            value = dummyZoom,
-                            onValueChange = { dummyZoom = it },
-                            valueRange = 0.5f..1.5f,
+                            value = zoomScale,
+                            onValueChange = { zoomScale = it },
+                            valueRange = 0.5f..3.0f,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -287,9 +354,11 @@ fun LoggedInView(viewModel: LeadViewModel) {
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.updateAvatar(selectedRawUri.toString())
+                        val localUri = copyUriToLocalFile(context, selectedRawUri!!, avatarUri)
+                        val saveUri = localUri?.toString() ?: selectedRawUri.toString()
+                        viewModel.updateAvatar(saveUri, zoomScale, panOffset.x, panOffset.y)
                         showCropDialog = false
-                        Toast.makeText(context, "Đã cắt và cập nhật ảnh đại diện thành công!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Đã căn chỉnh và cập nhật ảnh đại diện thành công!", Toast.LENGTH_SHORT).show()
                     }
                 ) {
                     Text("Cắt & Lưu", fontWeight = FontWeight.Bold)
@@ -301,6 +370,38 @@ fun LoggedInView(viewModel: LeadViewModel) {
                 }
             }
         )
+    }
+}
+
+private fun copyUriToLocalFile(context: android.content.Context, uri: Uri, oldAvatarPath: String): Uri? {
+    try {
+        if (oldAvatarPath.isNotEmpty() && oldAvatarPath.startsWith("file://")) {
+            try {
+                val oldUri = Uri.parse(oldAvatarPath)
+                oldUri.path?.let { path ->
+                    val oldFile = java.io.File(path)
+                    if (oldFile.exists()) {
+                        oldFile.delete()
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
+
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        val newFilename = "user_avatar_${System.currentTimeMillis()}.jpg"
+        val file = java.io.File(context.filesDir, newFilename)
+        val outputStream = java.io.FileOutputStream(file)
+        inputStream.use { input ->
+            outputStream.use { output ->
+                input.copyTo(output)
+            }
+        }
+        return Uri.fromFile(file)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        return null
     }
 }
 
