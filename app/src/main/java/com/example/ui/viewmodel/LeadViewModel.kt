@@ -256,7 +256,7 @@ class LeadViewModel(
             val savedLead = lead.copy(id = if (lead.id == 0) insertedId.toInt() else lead.id)
             com.example.receiver.ReminderReceiver.scheduleNotification(context, savedLead)
             // Perform Android native Calendar Event insertion safely
-            addCalendarEvent(context, name, recontactDate)
+            addCalendarEvent(context, name, recontactDate, notes)
             
             // Clean up states
             startAddLead()
@@ -322,7 +322,7 @@ class LeadViewModel(
         return 1L
     }
 
-    private fun addCalendarEvent(context: Context, leadName: String, recontactTimeMillis: Long) {
+    private fun addCalendarEvent(context: Context, leadName: String, recontactTimeMillis: Long, notes: String) {
         try {
             val cr = context.contentResolver
             val calId = getWritableCalendarId(context)
@@ -330,7 +330,7 @@ class LeadViewModel(
                 put(CalendarContract.Events.DTSTART, recontactTimeMillis)
                 put(CalendarContract.Events.DTEND, recontactTimeMillis + 60 * 60 * 1000) // 1 Hour meeting duration
                 put(CalendarContract.Events.TITLE, "Hẹn gặp $leadName (Lead Notes)")
-                put(CalendarContract.Events.DESCRIPTION, "Gặp mặt hỗ trợ khách hàng tiềm năng: $leadName. Lịch được tạo tự động bởi Lead Notes.")
+                put(CalendarContract.Events.DESCRIPTION, notes.ifEmpty { "Gặp mặt hỗ trợ khách hàng tiềm năng: $leadName. Lịch được tạo tự động bởi Lead Notes." })
                 put(CalendarContract.Events.CALENDAR_ID, calId)
                 put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
                 put(CalendarContract.Events.HAS_ALARM, 1)
@@ -345,6 +345,13 @@ class LeadViewModel(
                         put(CalendarContract.Reminders.MINUTES, 15) // Reminder trigger 15 minutes before re-contact
                     }
                     cr.insert(CalendarContract.Reminders.CONTENT_URI, reminderValues)
+
+                    val alarmValues = ContentValues().apply {
+                        put(CalendarContract.Reminders.EVENT_ID, eventId)
+                        put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALARM)
+                        put(CalendarContract.Reminders.MINUTES, 15)
+                    }
+                    cr.insert(CalendarContract.Reminders.CONTENT_URI, alarmValues)
                 }
             }
         } catch (e: SecurityException) {

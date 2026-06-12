@@ -25,6 +25,13 @@ class ReminderReceiver : BroadcastReceiver() {
         // Create Channel for Android O (API 26) and above
         val channelId = "lead_reminders_channel"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            val defaultSoundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
+                ?: android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+
             val channel = NotificationChannel(
                 channelId,
                 "Lịch hẹn tiếp xúc lại",
@@ -33,6 +40,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 description = "Kênh thông báo lịch hẹn gặp/tiếp xúc lại khách hàng tiềm năng"
                 enableVibration(true)
                 enableLights(true)
+                setSound(defaultSoundUri, audioAttributes)
             }
             notificationManager.createNotificationChannel(channel)
         }
@@ -59,6 +67,9 @@ class ReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val defaultSoundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
+            ?: android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+
         // Build notification with modern design hierarchy
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm) // System standard alarm icon
@@ -67,6 +78,7 @@ class ReminderReceiver : BroadcastReceiver() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
+            .setSound(defaultSoundUri)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setContentIntent(appPendingIntent)
             .addAction(android.R.drawable.ic_menu_call, "Gọi điện", callPendingIntent)
