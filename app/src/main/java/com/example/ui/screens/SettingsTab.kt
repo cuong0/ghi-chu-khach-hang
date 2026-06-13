@@ -356,12 +356,16 @@ fun SettingsTab(
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
                                     Text(
-                                        "Cho phép chạy trong nền",
+                                        text = "Cho phép chạy trong nền",
                                         fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.weight(1f, fill = false)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Surface(
@@ -423,12 +427,16 @@ fun SettingsTab(
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
                                     Text(
-                                        "Lên lịch hẹn chính xác",
+                                        text = "Lên lịch hẹn chính xác",
                                         fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.weight(1f, fill = false)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Surface(
